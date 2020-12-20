@@ -1,3 +1,4 @@
+import { User } from './../entities/User';
 import { MyContext } from "./../types";
 import {
   Resolver,
@@ -7,10 +8,12 @@ import {
   Field,
   Ctx,
   ObjectType,
+  Query,
 } from "type-graphql";
 import * as argon2 from "argon2";
 import "reflect-metadata";
-import { User } from "../entities/User";
+
+
 
 @InputType()
 class UsernamePasswordInput {
@@ -29,6 +32,7 @@ class FieldError {
 }
 @ObjectType()
 class UserResponse {
+
   @Field(() => [FieldError], { nullable: true })
   errors?: FieldError[];
 
@@ -38,6 +42,16 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver {
+  @Query(() => User, { nullable: true})
+  async me( 
+    @Ctx() { em, req }: MyContext 
+    ) {
+    if (!req.session.userId) {
+      return null;
+    }
+    const user = await em.findOne(User, {id: req.session.userId});
+    return user;
+  }
   @Mutation(() => UserResponse)
   async register(
     @Arg("options", () => UsernamePasswordInput) options: UsernamePasswordInput,
@@ -70,18 +84,17 @@ export class UserResolver {
       password: hashedPassword,
     });
     try {
-      await em.persistAndFlush(user);
-    } catch (err) {
-      if (err.code === "23505" || err.detail.inclued("already exists")) {
-        return {
-          errors: [
-            {
-              field: "username",
-              message: "this username already has been taken",
-            },
-          ],
-        };
-      }
+        await em.persistAndFlush(user);
+    } catch(err) {
+        if (err.code ==='23505' || err.detail.inclued('already exists')) {
+            return {
+                errors: [
+  {                  field: 'username',
+                    message: 'this username already has been taken'}
+                ]
+            }    
+        }
+
     }
     return { user };
   }
@@ -89,7 +102,7 @@ export class UserResolver {
   @Mutation(() => UserResponse)
   async login(
     @Arg("options", () => UsernamePasswordInput) options: UsernamePasswordInput,
-    @Ctx() { em }: MyContext
+    @Ctx() { em, req }: MyContext
   ): Promise<UserResponse> {
     const user = await em.findOne(User, { username: options.username });
     if (!user) {
@@ -113,8 +126,11 @@ export class UserResolver {
         ],
       };
     }
+
+    req.session.userId = user.id;
+
     return {
       user,
     };
   }
-}
+}   
