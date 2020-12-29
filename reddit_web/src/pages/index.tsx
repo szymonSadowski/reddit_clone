@@ -1,4 +1,3 @@
-
 const Index = () => 
   <div>hello word</div>;
 
