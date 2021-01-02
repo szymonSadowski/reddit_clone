@@ -1,4 +1,5 @@
-import { User } from './../entities/User';
+import { COOKIE_NAME } from './../constants';
+import { User } from "./../entities/User";
 import { MyContext } from "./../types";
 import {
   Resolver,
@@ -12,8 +13,7 @@ import {
 } from "type-graphql";
 import * as argon2 from "argon2";
 import "reflect-metadata";
-
-
+import { EntityManager } from "@mikro-orm/postgresql";
 
 @InputType()
 class UsernamePasswordInput {
@@ -32,7 +32,6 @@ class FieldError {
 }
 @ObjectType()
 class UserResponse {
-
   @Field(() => [FieldError], { nullable: true })
   errors?: FieldError[];
 
@@ -42,14 +41,12 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver {
-  @Query(() => User, { nullable: true})
-  async me( 
-    @Ctx() { em, req }: MyContext 
-    ) {
+  @Query(() => User, { nullable: true })
+  async me(@Ctx() { em, req }: MyContext) {
     if (!req.session.userId) {
       return null;
     }
-    const user = await em.findOne(User, {id: req.session.userId});
+    const user = await em.findOne(User, { id: req.session.userId });
     return user;
   }
   @Mutation(() => UserResponse)
@@ -79,22 +76,30 @@ export class UserResolver {
       };
     }
     const hashedPassword = await argon2.hash(options.password);
-    const user = em.create(User, {
-      username: options.username,
-      password: hashedPassword,
-    });
+    let user;
     try {
-        await em.persistAndFlush(user);
-    } catch(err) {
-        if (err.code ==='23505' || err.detail.inclued('already exists')) {
-            return {
-                errors: [
-  {                  field: 'username',
-                    message: 'this username already has been taken'}
-                ]
-            }    
-        }
-
+      const result = await (em as EntityManager)
+        .createQueryBuilder(User)
+        .getKnexQuery()
+        .insert({
+          username: options.username,
+          password: hashedPassword,
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+        .returning("*");
+      user = result[0];
+    } catch (err) {
+      if (err.code === "23505" || err.detail.inclued("already exists")) {
+        return {
+          errors: [
+            {
+              field: "username",
+              message: "this username already has been taken",
+            },
+          ],
+        };
+      }
     }
     // keep user loged in after registration
     req.session.userId = user.id;
@@ -136,4 +141,20 @@ export class UserResolver {
       user,
     };
   }
-}   
+
+  @Mutation(() => Boolean)
+  logout(@Ctx() { req, res }: MyContext) {
+    return new Promise((resolve) =>
+      req.session.destroy((err: any) => {
+        res.clearCookie(COOKIE_NAME);
+        if (err) {
+          console.log(err);
+          resolve(false);
+          return;
+        }
+
+        resolve(true);
+      })
+    );
+  }
+}

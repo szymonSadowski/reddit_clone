@@ -1,7 +1,7 @@
 import { UserResolver } from "./resolvers/user";
 import { PostResolver } from "./resolvers/post";
 import { HelloResolver } from "./resolvers/hello";
-import { __prod__ } from "./constants";
+import { COOKIE_NAME, __prod__ } from "./constants";
 import { MikroORM } from "@mikro-orm/core";
 import microConfig from "./mikro-orm.config";
 import express from "express";
@@ -30,7 +30,7 @@ const main = async () => {
 
   app.use(
     session({
-      name: "qid",
+      name: COOKIE_NAME,
       store: new RedisStore({
         client: redisClient,
         disableTouch: true,
