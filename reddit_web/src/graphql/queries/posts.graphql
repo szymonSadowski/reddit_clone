@@ -7,6 +7,8 @@ query Posts($limit: Int!, $cursor: String) {
       updatedAt
       title
       textSnippet
+      voteStatus
+      points
       creator {
         id
         username
