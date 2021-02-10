@@ -4,37 +4,39 @@ import React from "react";
 import { usePostQuery } from "../../generated/graphql";
 import { createUrqlClient } from "../../utils/createUrqlClient";
 import { Layout } from "../../components/Layout";
-import { Box, Heading } from "@chakra-ui/react";
+import { Box, Flex, Heading } from "@chakra-ui/react";
+import { getPostFromUrl } from "../../utils/getPostFromUrl";
+import { EditDeletePostButtons } from "../../components/EditDeletePostButtons";
 
 const Post = ({}) => {
-  const router = useRouter();
-  const intId =
-    typeof router.query.id === "string" ? parseInt(router.query.id) : -1;
-  const [{ data, fetching }] = usePostQuery({
-    pause: intId === -1,
-    variables: {
-      id: intId,
-    },
-  });
+  const [{ data, fetching }] = getPostFromUrl();
   if (fetching) {
     return (
       <Layout variant="regular">
-        <div>loading...</div>
+        <div>loading</div>
       </Layout>
     );
   }
   if (!data?.post) {
-      return (
-        <Layout variant="regular">
-            <Heading>Could not find post</Heading>
-        </Layout>
-      );
+    return (
+      <Layout variant="regular">
+        <div>not found any posts</div>
+      </Layout>
+    );
   }
+
   return (
     <Layout variant="regular">
-      <Heading mb={4}>{data.post.title}</Heading>
-      <br></br>
-      {data.post.text}
+      <Flex mb={4}>
+        <Heading>{data.post.title}</Heading>
+        <Box ml="auto">
+          <EditDeletePostButtons
+            id={data.post.id}
+            creatorId={data.post.creator.id}
+          ></EditDeletePostButtons>
+        </Box>
+      </Flex>
+      <Box mb={4} fontSize="24px">{data.post.text}</Box>
     </Layout>
   );
 };

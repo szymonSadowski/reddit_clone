@@ -57,7 +57,7 @@ const Login: React.FC<{}> = ({}) => {
               colorScheme="teal"
               isLoading={isSubmitting}
             >
-              register
+              login
             </Button>
           </Form>
         )}
